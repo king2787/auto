@@ -8,6 +8,9 @@ on:
 jobs:
   track_issues:
     runs-on: ubuntu-latest
+    env:
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
 
     steps:
       - name: Checkout repository
@@ -18,6 +21,9 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Install dependencies
+        run: npm install nodemailer
+
       - name: Download previous issue count
         uses: actions/download-artifact@v4
         with:
@@ -25,60 +31,16 @@ jobs:
           path: ./previous
         continue-on-error: true
 
-      - name: Fetch issue count from GitHub API
+      - name: Fetch current issue count from GitHub API
         id: fetch_api
         run: |
-          response=$(curl -s https://api.github.com/repos/anurag2787/github-auto)
+          response=$(curl -s https://api.github.com/repos/OWASP/Nest)
           current_issues=$(echo $response | jq '.open_issues_count')
           echo "$current_issues" > current_issue_count.txt
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
       - name: Compare issue count and send email
-        run: |
-          node <<'EOF'
-          const fs = require('fs');
-          const nodemailer = require('nodemailer');
-
-          // Read previous issue count
-          let previous = 0;
-          if (fs.existsSync('./previous/current_issue_count.txt')) {
-            previous = parseInt(fs.readFileSync('./previous/current_issue_count.txt', 'utf8'));
-          }
-
-          const current = parseInt(fs.readFileSync('current_issue_count.txt', 'utf8'));
-
-          console.log(`Previous: ${previous}, Current: ${current}`);
-
-          if (current > previous) {
-              console.log('⬆️ Issue count increased, sending email...');
-
-              // Configure nodemailer
-              const transporter = nodemailer.createTransport({
-                  service: 'gmail',
-                  auth: {
-                      user: process.env.EMAIL_USER,
-                      pass: process.env.EMAIL_PASS
-                  }
-              });
-
-              const mailOptions = {
-                  from: process.env.EMAIL_USER,
-                  to: "anuragyadav2787@gmail.com", // You can add more recipients
-                  subject: `⬆️ GitHub Issue Count Increased`,
-                  text: `Issue count increased from ${previous} to ${current}`
-              };
-
-              transporter.sendMail(mailOptions, (error, info) => {
-                  if (error) {
-                      console.error('Error sending email:', error);
-                  } else {
-                      console.log('Email sent:', info.response);
-                  }
-              });
-          } else {
-              console.log('✅ Issue count unchanged or decreased, no email sent.');
-          }
-          EOF
+        run: node send_email.js
 
       - name: Upload current issue count artifact
         uses: actions/upload-artifact@v4
