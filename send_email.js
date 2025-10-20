@@ -26,7 +26,7 @@ if (current > previous) {
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
-    to: process.env.EMAIL_USER, // you can add more recipients separated by comma
+    to: "anuragyadav2787@gmail.com", // you can add more recipients separated by comma
     subject: `⬆️ GitHub Issue Count Increased`,
     text: `Issue count increased from ${previous} to ${current}`
   };
