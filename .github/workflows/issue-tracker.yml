@@ -2,15 +2,15 @@ name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "* * * * *" # For testing, runs every minute
-  workflow_dispatch: # Allows manual run
+    - cron: "* * * * *" # every minute for testing; change to "0 * * * *" for hourly
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   track_issues:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repo
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '18'
 
-      # Step 3: Fetch GitHub API
+      # Step 3: Fetch current issue count from GitHub API
       - name: Fetch issue count from GitHub API
         id: fetch_api
         run: |
@@ -34,14 +34,12 @@ jobs:
         run: |
           if [ ! -f .issue_count.txt ]; then
             echo "0" > .issue_count.txt
-            echo "Created .issue_count.txt with initial value 0"
           fi
 
-      # Step 5: Compare counts
+      # Step 5: Compare current and previous issue count
       - name: Compare issue count
         run: |
           previous_issues=$(cat .issue_count.txt)
-          echo "Previous issues: $previous_issues"
           current_issues=${{ steps.fetch_api.outputs.current_issues }}
 
           if [ "$current_issues" -gt "$previous_issues" ]; then
@@ -49,17 +47,17 @@ jobs:
           elif [ "$current_issues" -lt "$previous_issues" ]; then
             echo "⬇️ Issue count decreased from $previous_issues to $current_issues"
           else
-            echo "✅ Issue count is unchanged: $current_issues"
+            echo "✅ Issue count unchanged: $current_issues"
           fi
 
+          # Update file with current count
           echo "$current_issues" > .issue_count.txt
 
-      # Step 6: Commit updated count with GITHUB_TOKEN
+      # Step 6: Commit updated count back to GitHub
       - name: Commit updated issue count
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Update issue count to latest value"
           file_pattern: .issue_count.txt
-          push: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
