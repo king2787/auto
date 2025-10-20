@@ -2,7 +2,7 @@ name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "* * * * *" # every minute for testing
+    - cron: "* * * * *" # Every minute for testing; change to "0 * * * *" for hourly
   workflow_dispatch:
 
 jobs:
@@ -10,32 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout (required for artifacts)
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
+      # Step 3: Download previous issue count artifact if exists
+      - name: Download previous issue count
+        uses: actions/download-artifact@v3
+        with:
+          name: issue-count
+          path: ./previous
+        continue-on-error: true # Allow first run when artifact doesn't exist
+
+      # Step 4: Fetch current issue count from GitHub API
       - name: Fetch issue count from GitHub API
         id: fetch_api
         run: |
           response=$(curl -s https://api.github.com/repos/OWASP/Nest)
           current_issues=$(echo $response | jq '.open_issues_count')
           echo "Current issues: $current_issues"
+          echo "$current_issues" > current_issue_count.txt
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
-      - name: Create issue count file if missing
-        run: |
-          if [ ! -f .issue_count.txt ]; then
-            echo "0" > .issue_count.txt
-          fi
-
+      # Step 5: Compare with previous issue count
       - name: Compare issue count
         run: |
-          previous_issues=$(cat .issue_count.txt)
+          if [ -f ./previous/current_issue_count.txt ]; then
+            previous_issues=$(cat ./previous/current_issue_count.txt)
+          else
+            previous_issues=0
+          fi
+
           current_issues=${{ steps.fetch_api.outputs.current_issues }}
+
+          echo "Previous issues: $previous_issues"
+          echo "Current issues: $current_issues"
 
           if [ "$current_issues" -gt "$previous_issues" ]; then
             echo "⬆️ Issue count increased from $previous_issues to $current_issues"
@@ -45,14 +60,9 @@ jobs:
             echo "✅ Issue count unchanged: $current_issues"
           fi
 
-          echo "$current_issues" > .issue_count.txt
-
-      - name: Commit and push changes
-        uses: EndBug/add-and-commit@v9
+      # Step 6: Upload current issue count as artifact
+      - name: Upload current issue count artifact
+        uses: actions/upload-artifact@v3
         with:
-          author_name: github-actions[bot]
-          author_email: 41898282+github-actions[bot]@users.noreply.github.com
-          message: "Update issue count to latest value"
-          add: ".issue_count.txt"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: issue-count
+          path: current_issue_count.txt
