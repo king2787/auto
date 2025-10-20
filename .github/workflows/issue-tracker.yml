@@ -2,25 +2,25 @@ name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "* * * * *" # Runs every hour
-  workflow_dispatch: # Optional: run manually from GitHub Actions
+    - cron: "* * * * *" # For testing, runs every minute
+  workflow_dispatch: # Allows manual run
 
 jobs:
   track_issues:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code to access issue count file
+      # Step 1: Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Setup Node.js environment
+      # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Step 3: Get current issue count from GitHub API
+      # Step 3: Fetch GitHub API
       - name: Fetch issue count from GitHub API
         id: fetch_api
         run: |
@@ -29,7 +29,7 @@ jobs:
           echo "Current issues: $current_issues"
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
-      # Step 4: Create file if not exists
+      # Step 4: Create file if missing
       - name: Create issue count file if missing
         run: |
           if [ ! -f .issue_count.txt ]; then
@@ -37,7 +37,7 @@ jobs:
             echo "Created .issue_count.txt with initial value 0"
           fi
 
-      # Step 5: Compare with previous count
+      # Step 5: Compare counts
       - name: Compare issue count
         run: |
           previous_issues=$(cat .issue_count.txt)
@@ -54,9 +54,12 @@ jobs:
 
           echo "$current_issues" > .issue_count.txt
 
-      # Step 6: Commit updated count back to GitHub
+      # Step 6: Commit updated count with GITHUB_TOKEN
       - name: Commit updated issue count
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Update issue count to latest value"
           file_pattern: .issue_count.txt
+          push: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
