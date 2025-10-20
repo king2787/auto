@@ -1,13 +1,14 @@
-name: Track GitHub Issues
+name: Track GitHub Issues and Send Email
 
 on:
   schedule:
-    - cron: "0 * * * *" # every hour
+    - cron: "0 * * * *" # runs every hour
   workflow_dispatch:
 
 jobs:
   track_issues:
     runs-on: ubuntu-latest
+
     env:
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
@@ -31,15 +32,14 @@ jobs:
           path: ./previous
         continue-on-error: true
 
-      - name: Fetch current issue count from GitHub API
+      - name: Fetch current real issue count (excluding PRs)
         id: fetch_api
         run: |
-          response=$(curl -s https://api.github.com/repos/OWASP/Nest)
-          current_issues=$(echo $response | jq '.open_issues_count')
+          current_issues=$(curl -s "https://api.github.com/repos/OWASP/Nest/issues?state=open&per_page=100" | jq '[.[] | select(.pull_request == null)] | length')
           echo "$current_issues" > current_issue_count.txt
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
-      - name: Compare issue count and send email
+      - name: Compare and Send Email
         run: node send_email.js
 
       - name: Upload current issue count artifact
