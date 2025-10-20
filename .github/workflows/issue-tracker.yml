@@ -22,7 +22,7 @@ jobs:
 
       # Step 3: Download previous issue count artifact if exists
       - name: Download previous issue count
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: issue-count
           path: ./previous
@@ -62,7 +62,7 @@ jobs:
 
       # Step 6: Upload current issue count as artifact
       - name: Upload current issue count artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: issue-count
           path: current_issue_count.txt
