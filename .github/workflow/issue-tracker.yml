@@ -1,0 +1,62 @@
+name: Track GitHub Issues
+
+on:
+  schedule:
+    - cron: "* * * * *" # Runs every hour
+  workflow_dispatch: # Optional: run manually from GitHub Actions
+
+jobs:
+  track_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code to access issue count file
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Step 3: Get current issue count from GitHub API
+      - name: Fetch issue count from GitHub API
+        id: fetch_api
+        run: |
+          response=$(curl -s https://api.github.com/repos/OWASP/Nest)
+          current_issues=$(echo $response | jq '.open_issues_count')
+          echo "Current issues: $current_issues"
+          echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
+
+      # Step 4: Create file if not exists
+      - name: Create issue count file if missing
+        run: |
+          if [ ! -f .issue_count.txt ]; then
+            echo "0" > .issue_count.txt
+            echo "Created .issue_count.txt with initial value 0"
+          fi
+
+      # Step 5: Compare with previous count
+      - name: Compare issue count
+        run: |
+          previous_issues=$(cat .issue_count.txt)
+          echo "Previous issues: $previous_issues"
+          current_issues=${{ steps.fetch_api.outputs.current_issues }}
+
+          if [ "$current_issues" -gt "$previous_issues" ]; then
+            echo "⬆️ Issue count increased from $previous_issues to $current_issues"
+          elif [ "$current_issues" -lt "$previous_issues" ]; then
+            echo "⬇️ Issue count decreased from $previous_issues to $current_issues"
+          else
+            echo "✅ Issue count is unchanged: $current_issues"
+          fi
+
+          echo "$current_issues" > .issue_count.txt
+
+      # Step 6: Commit updated count back to GitHub
+      - name: Commit updated issue count
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update issue count to latest value"
+          file_pattern: .issue_count.txt
