@@ -2,25 +2,22 @@ name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "* * * * *" # every minute for testing; change to "0 * * * *" for hourly
-  workflow_dispatch: # Allows manual trigger
+    - cron: "* * * * *" # every minute for testing
+  workflow_dispatch:
 
 jobs:
   track_issues:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Step 3: Fetch current issue count from GitHub API
       - name: Fetch issue count from GitHub API
         id: fetch_api
         run: |
@@ -29,14 +26,12 @@ jobs:
           echo "Current issues: $current_issues"
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
-      # Step 4: Create file if missing
       - name: Create issue count file if missing
         run: |
           if [ ! -f .issue_count.txt ]; then
             echo "0" > .issue_count.txt
           fi
 
-      # Step 5: Compare current and previous issue count
       - name: Compare issue count
         run: |
           previous_issues=$(cat .issue_count.txt)
@@ -50,14 +45,14 @@ jobs:
             echo "✅ Issue count unchanged: $current_issues"
           fi
 
-          # Update file with current count
           echo "$current_issues" > .issue_count.txt
 
-      # Step 6: Commit updated count back to GitHub
-      - name: Commit updated issue count
-        uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
         with:
-          commit_message: "Update issue count to latest value"
-          file_pattern: .issue_count.txt
+          author_name: github-actions[bot]
+          author_email: 41898282+github-actions[bot]@users.noreply.github.com
+          message: "Update issue count to latest value"
+          add: ".issue_count.txt"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
