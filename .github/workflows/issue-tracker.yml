@@ -2,7 +2,7 @@ name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "* * * * *" # Every minute for testing; change to "0 * * * *" for hourly
+    - cron: "0 * * * *" # every hour
   workflow_dispatch:
 
 jobs:
@@ -10,57 +10,76 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout (required for artifacts)
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Step 3: Download previous issue count artifact if exists
       - name: Download previous issue count
         uses: actions/download-artifact@v4
         with:
           name: issue-count
           path: ./previous
-        continue-on-error: true # Allow first run when artifact doesn't exist
+        continue-on-error: true
 
-      # Step 4: Fetch current issue count from GitHub API
       - name: Fetch issue count from GitHub API
         id: fetch_api
         run: |
-          response=$(curl -s https://api.github.com/repos/OWASP/Nest)
+          response=$(curl -s https://api.github.com/repos/anurag2787/github-auto)
           current_issues=$(echo $response | jq '.open_issues_count')
-          echo "Current issues: $current_issues"
           echo "$current_issues" > current_issue_count.txt
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
 
-      # Step 5: Compare with previous issue count
-      - name: Compare issue count
+      - name: Compare issue count and send email
         run: |
-          if [ -f ./previous/current_issue_count.txt ]; then
-            previous_issues=$(cat ./previous/current_issue_count.txt)
-          else
-            previous_issues=0
-          fi
+          node <<'EOF'
+          const fs = require('fs');
+          const nodemailer = require('nodemailer');
 
-          current_issues=${{ steps.fetch_api.outputs.current_issues }}
+          // Read previous issue count
+          let previous = 0;
+          if (fs.existsSync('./previous/current_issue_count.txt')) {
+            previous = parseInt(fs.readFileSync('./previous/current_issue_count.txt', 'utf8'));
+          }
 
-          echo "Previous issues: $previous_issues"
-          echo "Current issues: $current_issues"
+          const current = parseInt(fs.readFileSync('current_issue_count.txt', 'utf8'));
 
-          if [ "$current_issues" -gt "$previous_issues" ]; then
-            echo "⬆️ Issue count increased from $previous_issues to $current_issues"
-          elif [ "$current_issues" -lt "$previous_issues" ]; then
-            echo "⬇️ Issue count decreased from $previous_issues to $current_issues"
-          else
-            echo "✅ Issue count unchanged: $current_issues"
-          fi
+          console.log(`Previous: ${previous}, Current: ${current}`);
 
-      # Step 6: Upload current issue count as artifact
+          if (current > previous) {
+              console.log('⬆️ Issue count increased, sending email...');
+
+              // Configure nodemailer
+              const transporter = nodemailer.createTransport({
+                  service: 'gmail',
+                  auth: {
+                      user: process.env.EMAIL_USER,
+                      pass: process.env.EMAIL_PASS
+                  }
+              });
+
+              const mailOptions = {
+                  from: process.env.EMAIL_USER,
+                  to: "anuragyadav2787@gmail.com", // You can add more recipients
+                  subject: `⬆️ GitHub Issue Count Increased`,
+                  text: `Issue count increased from ${previous} to ${current}`
+              };
+
+              transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                      console.error('Error sending email:', error);
+                  } else {
+                      console.log('Email sent:', info.response);
+                  }
+              });
+          } else {
+              console.log('✅ Issue count unchanged or decreased, no email sent.');
+          }
+          EOF
+
       - name: Upload current issue count artifact
         uses: actions/upload-artifact@v4
         with:
