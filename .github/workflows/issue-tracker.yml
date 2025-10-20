@@ -32,12 +32,13 @@ jobs:
           path: ./previous
         continue-on-error: true
 
-      - name: Fetch current real issue count (excluding PRs)
+      - name: Fetch current issue count from GitHub API
         id: fetch_api
         run: |
-          current_issues=$(curl -s "https://api.github.com/repos/OWASP/Nest/issues?state=open&per_page=100" | jq '[.[] | select(.pull_request == null)] | length')
+          current_issues=$(curl -s "https://api.github.com/search/issues?q=repo:OWASP/Nest+type:issue+state:open" | jq '.total_count')
           echo "$current_issues" > current_issue_count.txt
           echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
+
 
       - name: Compare and Send Email
         run: node send_email.js
