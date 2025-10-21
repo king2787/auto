@@ -1,8 +1,8 @@
-name: Track GitHub Issues and Send Email
+name: Track GitHub Issues
 
 on:
   schedule:
-    - cron: "0 * * * *" # runs every hour
+    - cron: "0 * * * *" # every hour
   workflow_dispatch:
 
 jobs:
@@ -15,36 +15,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Restore previous issue count
+        uses: actions/cache@v4
         with:
-          node-version: '18'
+          path: prev_count.txt
+          key: issue-count-cache
 
       - name: Install dependencies
-        run: npm install nodemailer
+        run: npm install axios nodemailer
 
-      - name: Download previous issue count
-        uses: actions/download-artifact@v4
+      - name: Run tracker script
+        run: node track_issues.js
+
+      - name: Save updated issue count
+        uses: actions/cache@v4
         with:
-          name: issue-count
-          path: ./previous
-        continue-on-error: true
-
-      - name: Fetch current issue count from GitHub API
-        id: fetch_api
-        run: |
-          current_issues=$(curl -s "https://api.github.com/search/issues?q=repo:OWASP/Nest+type:issue+state:open" | jq '.total_count')
-          echo "$current_issues" > current_issue_count.txt
-          echo "current_issues=$current_issues" >> $GITHUB_OUTPUT
-
-
-      - name: Compare and Send Email
-        run: node send_email.js
-
-      - name: Upload current issue count artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: issue-count
-          path: current_issue_count.txt
+          path: prev_count.txt
+          key: issue-count-cache
