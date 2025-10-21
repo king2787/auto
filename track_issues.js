@@ -3,8 +3,8 @@ const axios = require('axios');
 const nodemailer = require('nodemailer');
 const { execSync } = require('child_process');
 
-const owner = 'king2787';
-const repo = 'auto';
+const owner = 'OWASP';
+const repo = 'Nest';
 const issueFile = 'prev_count.txt';
 
 async function getIssueCount() {
