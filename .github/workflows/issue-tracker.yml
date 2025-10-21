@@ -9,6 +9,9 @@ jobs:
   track_issues:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     env:
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
@@ -16,21 +19,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Restore previous issue count
-        uses: actions/cache@v4
         with:
-          path: prev_count.txt
-          key: issue-count-cache
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: npm install axios nodemailer
 
       - name: Run tracker script
         run: node track_issues.js
-
-      - name: Save updated issue count
-        uses: actions/cache@v4
-        with:
-          path: prev_count.txt
-          key: issue-count-cache

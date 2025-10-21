@@ -1,15 +1,14 @@
 const fs = require('fs');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
+const { execSync } = require('child_process');
 
-const owner = 'king2787';
-const repo = 'auto';
+const owner = 'OWASP';
+const repo = 'Nest';
 const issueFile = 'prev_count.txt';
 
 async function getIssueCount() {
-  const res = await axios.get(
-    `https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:open`
-  );
+  const res = await axios.get(`https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:open`);
   return res.data.total_count;
 }
 
@@ -37,16 +36,10 @@ function sendEmail(oldCount, newCount) {
     to: 'anuragyadav2787@gmail.com',
     subject: `📈 Issues increased in ${owner}/${repo}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f4f6f8; border-radius: 8px;">
-        <h2 style="color: #333;">🚨 GitHub Issues Alert</h2>
-        <p style="font-size: 16px; color: #555;">
-          The number of <strong>open issues</strong> in 
-          <strong>${owner}/${repo}</strong> has increased.
-        </p>
-        <div style="margin: 20px 0; padding: 15px; background-color: #fff; border-left: 5px solid #e53e3e;">
-          <p>📌 Issue count changed from <strong>${oldCount}</strong> → <strong>${newCount}</strong></p>
-        </div>
-        <p style="font-size: 14px; color: #888;">Timestamp: ${new Date().toLocaleString()}</p>
+      <div style="font-family: Arial, sans-serif;">
+        <h2>🚨 GitHub Issues Alert</h2>
+        <p>📌 Issue count changed from <strong>${oldCount}</strong> → <strong>${newCount}</strong></p>
+        <p>🕒 ${new Date().toLocaleString()}</p>
       </div>
     `,
   };
@@ -67,7 +60,17 @@ async function monitor() {
     console.log('No increase in issue count.');
   }
 
+  // Save updated count and commit to repo
   saveCount(current);
+  try {
+    execSync('git config --global user.email "bot@example.com"');
+    execSync('git config --global user.name "GitHub Action Bot"');
+    execSync('git add prev_count.txt');
+    execSync(`git commit -m "Update issue count to ${current}" || true`);
+    execSync('git push');
+  } catch (e) {
+    console.log('⚠️ Failed to push update:', e.message);
+  }
 }
 
 monitor().catch(console.error);
